@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Карта сказочных земель</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: #1b140e;
+        font-family: Arial, sans-serif;
+        color: #2c2013;
+        overflow: hidden;
+      }
+
+      .page {
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        /* padding: 14px 20px 20px; */
+        gap: 12px;
+      }
+
+      .page-title {
+        margin: 0;
+        font-size: 38px;
+        line-height: 1.1;
+        font-weight: 700;
+        color: #f6dfa2;
+        text-align: center;
+        text-shadow: 0 3px 10px rgba(0, 0, 0, 0.45);
+        flex-shrink: 0;
+      }
+
+      .map-wrap {
+        position: relative;
+        width: 100%;
+        max-width: 1920px;
+        /* height: calc(100vh - 86px); */
+      }
+
+      .map-box {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        border-radius: 16px;
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.4);
+        background: #000;
+      }
+
+      .map-image {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        user-select: none;
+        -webkit-user-drag: none;
+        pointer-events: none;
+        background: #000;
+      }
+
+      .hotspots {
+        position: absolute;
+        inset: 0;
+      }
+
+      .hotspot {
+        position: absolute;
+        transform: translate(-50%, -50%);
+        width: 50px;
+        height: 50px;
+        border: none;
+        padding: 0;
+        border-radius: 50%;
+        background: transparent;
+        cursor: pointer;
+        z-index: 5;
+        touch-action: manipulation;
+      }
+
+      .hotspot::before,
+      .hotspot::after,
+      .hotspot span {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        border-radius: 50%;
+        content: "";
+      }
+
+      .hotspot::before {
+        width: 54px;
+        height: 54px;
+        border: 3px dashed rgba(255, 0, 0, 0.95);
+        animation: rotateRing 4s linear infinite;
+      }
+
+      .hotspot::after {
+        width: 40px;
+        height: 40px;
+        background: #ff0000;
+        border: 3px solid #fff2b2;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+      }
+
+      .hotspot span {
+        width: 64px;
+        height: 64px;
+        border: 2px solid rgba(255, 214, 87, 0.28);
+        animation: pulseRing 1.8s ease-out infinite;
+      }
+
+      .hotspot:hover::after,
+      .hotspot:focus-visible::after {
+        transform: translate(-50%, -50%) scale(1.12);
+      }
+
+      .hotspot:focus-visible {
+        outline: 2px solid #fff2b2;
+        outline-offset: 2px;
+      }
+
+      @keyframes rotateRing {
+        from {
+          transform: translate(-50%, -50%) rotate(0deg);
+        }
+        to {
+          transform: translate(-50%, -50%) rotate(360deg);
+        }
+      }
+
+      @keyframes pulseRing {
+        0% {
+          transform: translate(-50%, -50%) scale(0.9);
+          opacity: 0.9;
+        }
+        70% {
+          transform: translate(-50%, -50%) scale(1.15);
+          opacity: 0.12;
+        }
+        100% {
+          transform: translate(-50%, -50%) scale(1.22);
+          opacity: 0;
+        }
+      }
+
+      .popup {
+        position: absolute;
+        width: 340px;
+        height: 430px;
+        display: none;
+        flex-direction: column;
+        background: #f4e7c9;
+        border: 2px solid #8a6432;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+        z-index: 20;
+      }
+
+      .popup.is-open {
+        display: flex;
+      }
+
+      .popup-head {
+        position: relative;
+        flex-shrink: 0;
+        padding: 16px 52px 16px 16px;
+        min-height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-bottom: 1px solid rgba(138, 100, 50, 0.25);
+        background: linear-gradient(180deg, #fbf2de 0%, #ead6aa 100%);
+      }
+
+      .popup-title {
+        margin: 0;
+        font-size: 22px;
+        line-height: 1.2;
+        text-align: center;
+        color: #4d3112;
+      }
+
+      .popup-close {
+        position: absolute;
+        right: 10px;
+        top: 10px;
+        width: 34px;
+        height: 34px;
+        border: none;
+        border-radius: 50%;
+        background: #8f2c23;
+        color: #fff;
+        font-size: 22px;
+        line-height: 1;
+        cursor: pointer;
+      }
+
+      .popup-close:hover,
+      .popup-close:focus-visible {
+        background: #6e201a;
+        outline: none;
+      }
+
+      .popup-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 14px;
+      }
+
+      .popup-image {
+        display: block;
+        width: 100%;
+        height: 180px;
+        object-fit: cover;
+        border-radius: 12px;
+        border: 1px solid rgba(138, 100, 50, 0.25);
+        background: #d9cfb8;
+        margin-bottom: 12px;
+      }
+
+      .popup-text {
+        margin: 0;
+        font-size: 16px;
+        line-height: 1.5;
+        white-space: pre-line;
+      }
+
+      .popup-body::-webkit-scrollbar {
+        width: 10px;
+      }
+
+      .popup-body::-webkit-scrollbar-track {
+        background: rgba(138, 100, 50, 0.12);
+      }
+
+      .popup-body::-webkit-scrollbar-thumb {
+        background: rgba(138, 100, 50, 0.5);
+        border-radius: 999px;
+      }
+
+      @media (max-width: 900px) {
+        .page {
+          padding: 10px;
+          gap: 10px;
+        }
+
+        .page-title {
+          font-size: 28px;
+        }
+
+        .map-wrap {
+          height: calc(100vh - 64px);
+        }
+
+        .hotspot {
+          width: 42px;
+          height: 42px;
+        }
+
+        .hotspot::before {
+          width: 40px;
+          height: 40px;
+        }
+
+        .hotspot::after {
+          width: 18px;
+          height: 18px;
+        }
+
+        .hotspot span {
+          width: 54px;
+          height: 54px;
+        }
+
+        .popup {
+          width: 280px;
+          height: 380px;
+        }
+
+        .popup-title {
+          font-size: 20px;
+        }
+
+        .popup-image {
+          height: 150px;
+        }
+
+        .popup-text {
+          font-size: 15px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <h1 class="page-title">Карта сказочных земель</h1>
+
+      <div class="map-wrap">
+        <div class="map-box" id="mapBox">
+          <img class="map-image" src="map.png" alt="Карта сказочных земель" />
+
+          <div class="hotspots" id="hotspots"></div>
+
+          <div class="popup" id="popup">
+            <div class="popup-head">
+              <h2 class="popup-title" id="popupTitle"></h2>
+              <button
+                class="popup-close"
+                id="popupClose"
+                type="button"
+                aria-label="Закрыть"
+              >
+                ×
+              </button>
+            </div>
+            <div class="popup-body">
+              <img class="popup-image" id="popupImage" src="" alt="" />
+              <p class="popup-text" id="popupText"></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const points = [
+        {
+          id: 1,
+          title: "Царский город",
+          x: 72.5,
+          y: 19,
+          image: "https://picsum.photos/id/1040/600/400",
+          text: "Большой город на холме, окружённый стенами и башнями. Здесь живёт правитель сказочных земель, проходят пиры, собираются гонцы и начинаются дальние походы.\n\nЭто тестовый текст. Потом сюда можно подставить реальное описание локации, легенду, факты, задания, персонажей и любую дополнительную информацию.",
+        },
+        {
+          id: 2,
+          title: "Крепость у леса",
+          x: 10.5,
+          y: 55,
+          image: "https://picsum.photos/id/1068/600/400",
+          text: "Укреплённое поселение на краю леса. Здесь живут мастера, воины и торговцы. Отсюда идёт дорога в глубь чащи, где путникам лучше не задерживаться до темноты.",
+        },
+        {
+          id: 3,
+          title: "Мельница на распутье",
+          x: 48,
+          y: 41,
+          image: "https://picsum.photos/id/1025/600/400",
+          text: "Старая мельница стоит между дорогами и полями. Место спокойное днём, но по ночам здесь будто бы слышат шёпот ветра и скрип старых крыльев.",
+        },
+        {
+          id: 4,
+          title: "Речной мост",
+          x: 77,
+          y: 42,
+          image: "https://picsum.photos/id/1039/600/400",
+          text: "Деревянный мост соединяет берега извилистой реки. Купцы и путники проходят здесь каждый день, а по воде плывут лодки в дальние земли.",
+        },
+        {
+          id: 5,
+          title: "Лесной тракт",
+          x: 15,
+          y: 80,
+          image: "https://picsum.photos/id/1056/600/400",
+          text: "Старая дорога ведёт через поля и леса. По этому тракту часто идут странники, охотники и те, кто ищет путь к чудесам.",
+        },
+        {
+          id: 6,
+          title: "Озёрная гавань",
+          x: 18,
+          y: 19,
+          image: "https://picsum.photos/id/1011/600/400",
+          text: "Тихая гавань у большой воды. Здесь можно встретить рыбаков, лодочников и путешественников, идущих по водным путям.",
+        },
+      ];
+
+      const mapBox = document.getElementById("mapBox");
+      const hotspots = document.getElementById("hotspots");
+      const popup = document.getElementById("popup");
+      const popupTitle = document.getElementById("popupTitle");
+      const popupImage = document.getElementById("popupImage");
+      const popupText = document.getElementById("popupText");
+      const popupClose = document.getElementById("popupClose");
+
+      let currentPointId = null;
+
+      function renderPoints() {
+        hotspots.innerHTML = "";
+
+        points.forEach((point) => {
+          const button = document.createElement("button");
+          button.className = "hotspot";
+          button.type = "button";
+          button.setAttribute("aria-label", point.title);
+          button.dataset.id = point.id;
+          button.style.left = point.x + "%";
+          button.style.top = point.y + "%";
+          button.innerHTML = "<span></span>";
+
+          button.addEventListener("click", (event) => {
+            openPopup(point, event.currentTarget);
+          });
+
+          hotspots.appendChild(button);
+        });
+      }
+
+      function openPopup(point, hotspot) {
+        currentPointId = point.id;
+        popupTitle.textContent = point.title;
+        popupImage.src = point.image;
+        popupImage.alt = point.title;
+        popupText.textContent = point.text;
+        popup.classList.add("is-open");
+        placePopup(hotspot);
+      }
+
+      function placePopup(hotspot) {
+        const mapRect = mapBox.getBoundingClientRect();
+        const hotspotRect = hotspot.getBoundingClientRect();
+        const popupWidth = popup.offsetWidth || 340;
+        const popupHeight = popup.offsetHeight || 430;
+        const gap = 16;
+        const padding = 10;
+
+        let left =
+          hotspotRect.left - mapRect.left + hotspotRect.width / 2 + gap;
+        let top =
+          hotspotRect.top -
+          mapRect.top -
+          popupHeight / 2 +
+          hotspotRect.height / 2;
+
+        if (left + popupWidth > mapRect.width - padding) {
+          left =
+            hotspotRect.left -
+            mapRect.left -
+            popupWidth -
+            gap +
+            hotspotRect.width / 2;
+        }
+
+        if (left < padding) {
+          left = padding;
+        }
+
+        if (top < padding) {
+          top = padding;
+        }
+
+        if (top + popupHeight > mapRect.height - padding) {
+          top = mapRect.height - popupHeight - padding;
+        }
+
+        popup.style.left = left + "px";
+        popup.style.top = top + "px";
+      }
+
+      function closePopup() {
+        currentPointId = null;
+        popup.classList.remove("is-open");
+      }
+
+      popupClose.addEventListener("click", closePopup);
+
+      document.addEventListener("click", (event) => {
+        if (!popup.classList.contains("is-open")) return;
+
+        const isInsidePopup = popup.contains(event.target);
+        const isHotspot = event.target.closest(".hotspot");
+
+        if (!isInsidePopup && !isHotspot) {
+          closePopup();
+        }
+      });
+
+      window.addEventListener("resize", () => {
+        if (!currentPointId) return;
+        const hotspot = document.querySelector(
+          `.hotspot[data-id="${currentPointId}"]`,
+        );
+        if (hotspot) {
+          placePopup(hotspot);
+        }
+      });
+
+      renderPoints();
+    </script>
+  </body>
+</html>
